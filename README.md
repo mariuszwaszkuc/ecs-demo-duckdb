@@ -256,7 +256,7 @@ etl-duckdb
 Example:
 
 ```text
-771665903983.dkr.ecr.us-east-1.amazonaws.com/etl-duckdb
+111111111111.dkr.ecr.us-east-1.amazonaws.com/etl-duckdb
 ```
 
 ---
@@ -292,7 +292,7 @@ Task definition example:
   "containerDefinitions": [
     {
       "name": "etl-container",
-      "image": "771665903983.dkr.ecr.us-east-1.amazonaws.com/etl-duckdb:latest",
+      "image": "111111111111.dkr.ecr.us-east-1.amazonaws.com/etl-duckdb:latest",
       "cpu": 0,
       "memory": 2048,
       "essential": true,
@@ -330,8 +330,8 @@ Task definition example:
     }
   ],
 
-  "taskRoleArn": "arn:aws:iam::771665903983:role/s3-mw-snowflake",
-  "executionRoleArn": "arn:aws:iam::771665903983:role/ecsTaskExecutionRoleNew",
+  "taskRoleArn": "arn:aws:iam::111111111111:role/s3-mw-snowflake",
+  "executionRoleArn": "arn:aws:iam::111111111111:role/ecsTaskExecutionRoleNew",
 
   "networkMode": "awsvpc",
 
