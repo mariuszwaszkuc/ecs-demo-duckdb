@@ -1,4 +1,4 @@
-name: Build and Deploy to ECS12
+name: Build and Deploy to ECS1
 
 on:
   push:
