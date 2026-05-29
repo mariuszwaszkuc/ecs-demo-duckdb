@@ -1,36 +1,68 @@
-name: Build and Push to ECR
+name: Build and Deploy to ECS
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: etl-duckdb
+  ECS_SERVICE: duckdb-etl-service
+  ECS_CLUSTER: duckdb-cluster
+  ECS_TASK_DEFINITION: duckdb-etl-task
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Configure AWS
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to ECR
-      run: |
-        aws ecr get-login-password | docker login --username AWS --password-stdin ${{ secrets.ECR_REPOSITORY }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build Docker image
-      run: |
-        docker build -t etl-duckdb .
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY .
 
-    - name: Tag image
-      run: |
-        docker tag etl-duckdb:latest ${{ secrets.ECR_REPOSITORY }}:latest
+      - name: Tag image
+        run: |
+          docker tag $ECR_REPOSITORY:latest \
+          771665903983.dkr.ecr.us-east-1.amazonaws.com/$ECR_REPOSITORY:latest
 
-    - name: Push image
-      run: |
-        docker push ${{ secrets.ECR_REPOSITORY }}:latest
+      - name: Push image to ECR
+        run: |
+          docker push \
+          771665903983.dkr.ecr.us-east-1.amazonaws.com/$ECR_REPOSITORY:latest
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition duckdb-etl-task \
+            --query taskDefinition > task-definition.json
+
+      - name: Fill new image in task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: etl-container
+          image: 771665903983.dkr.ecr.us-east-1.amazonaws.com/etl-duckdb:latest
+
+      - name: Deploy ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: duckdb-etl-service
+          cluster: duckdb-cluster
+          wait-for-service-stability: true
