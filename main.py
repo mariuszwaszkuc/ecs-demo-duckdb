@@ -1,4 +1,4 @@
-##demmo 
+##demo 2
 import os
 import duckdb
 import logging
