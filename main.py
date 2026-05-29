@@ -46,7 +46,7 @@ def run_etl():
         tables = con.execute("""
             SELECT table_name
             FROM information_schema.tables
-            WHERE table_schema = 'mysqldb'
+            WHERE table_schema = 'big_pharma'
               AND table_type = 'BASE TABLE'
         """).fetchall()
 
