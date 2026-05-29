@@ -1,10 +1,10 @@
-##demo 2
 import os
 import duckdb
 import logging
 import sys
 
 logging.basicConfig(level=logging.INFO)
+
 
 def run_etl():
     try:
@@ -13,10 +13,11 @@ def run_etl():
         password = os.environ["DB_PASSWORD"]
         database = os.environ.get("DB_NAME", "big_pharma")
 
-        output_file = "s3://s3-mw-snowflake/output/new_forecast_details_data.parquet"
+        s3_bucket = "s3://s3-mw-snowflake/output"
 
         con = duckdb.connect()
 
+        # AWS credentials from ECS task role / AWS CLI / IAM role
         con.execute("""
         CREATE OR REPLACE SECRET (
             TYPE s3,
@@ -26,6 +27,7 @@ def run_etl():
 
         con.execute("SET home_directory='/tmp'")
 
+        # Extensions
         con.execute("INSTALL httpfs;")
         con.execute("LOAD httpfs;")
 
@@ -39,23 +41,52 @@ def run_etl():
             AS mysqldb (TYPE mysql);
         """)
 
-        logging.info("Exporting to S3...")
+        logging.info("Fetching table list...")
 
-        con.execute(f"""
-            COPY (
-                SELECT * FROM mysqldb.forecast_details
-            )
-            TO '{output_file}'
-            (FORMAT PARQUET);
-        """)
+        tables = con.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'mysqldb'
+              AND table_type = 'BASE TABLE'
+        """).fetchall()
 
-        logging.info("Done!")
+        if not tables:
+            logging.warning("No tables found.")
+            return
+
+        logging.info(f"Found {len(tables)} tables")
+
+        for table in tables:
+            table_name = table[0]
+
+            try:
+                output_file = f"{s3_bucket}/{table_name}.parquet"
+
+                logging.info(f"Exporting table: {table_name}")
+
+                con.execute(f"""
+                    COPY (
+                        SELECT * FROM mysqldb.{table_name}
+                    )
+                    TO '{output_file}'
+                    (FORMAT PARQUET);
+                """)
+
+                logging.info(f"Saved: {output_file}")
+
+            except Exception as table_error:
+                logging.error(
+                    f"Failed exporting table {table_name}: {table_error}"
+                )
+
+        logging.info("ETL finished successfully!")
 
     except Exception as e:
         logging.error(f"ETL failed: {e}")
         sys.exit(1)
 
     sys.exit(0)
+
 
 if __name__ == "__main__":
     run_etl()
