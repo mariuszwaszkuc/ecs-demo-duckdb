@@ -17,7 +17,7 @@ def run_etl():
 
         con = duckdb.connect()
 
-        # AWS credentials from ECS task role / AWS CLI / IAM role
+        # AWS credentials from ECS task role / AWS CLI / IAM role /
         con.execute("""
         CREATE OR REPLACE SECRET (
             TYPE s3,
