@@ -1,4 +1,4 @@
-# ECS Demo DuckDB ETL
+# ECS Demo DuckDB ETL 2
 
 ETL pipeline using:
 
